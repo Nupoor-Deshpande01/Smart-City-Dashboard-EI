@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart City Analytics Dashboard</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #030712;
+            --bg-grid: rgba(17, 24, 39, 0.6);
+            --border: rgba(99, 102, 241, 0.2);
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.5);
+            --accent-secondary: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* --- HERO CITY SECTION --- */
+        #hero {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 20vh;
+            overflow: hidden;
+        }
+
+        #cityCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 30%, var(--bg-base) 100%);
+            z-index: 2;
+        }
+
+        .hero-content {
+            z-index: 3;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--accent);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            color: var(--accent-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+        }
+
+        .hero-title {
+            font-family: 'Orbitron', 'Outfit', sans-serif;
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #ffffff, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: -3px 3px 0px rgba(99, 102, 241, 0.8), -6px 6px 15px rgba(6, 182, 212, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            animation: bounce 2s infinite ease-in-out;
+            pointer-events: auto;
+            text-decoration: none;
+        }
+
+        .scroll-indicator svg { width: 24px; height: 24px; stroke: var(--text-muted); }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        /* --- DASHBOARD LAYOUT --- */
+        #dashboard {
+            position: relative;
+            z-index: 10;
+            padding: 2rem 2rem 8rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .about-section {
+            background: rgba(15, 23, 42, 0.4);
+            border-left: 4px solid var(--accent-secondary);
+            padding: 2.5rem;
+            margin-bottom: 4rem;
+            border-radius: 0 24px 24px 0;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .about-section h2 { font-size: 2rem; margin-bottom: 1rem; color: #fff; letter-spacing: 1px; }
+        .about-section p { color: var(--text-muted); line-height: 1.8; font-size: 1.1rem; max-width: 1000px; margin-bottom: 1rem; }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+        }
+
+        .header-title-wrapper h2 { font-size: 2.5rem; font-weight: 600; color: #fff; }
+        .header-title-wrapper p { color: var(--text-muted); margin-top: 0.5rem; font-size: 1.1rem; }
+
+        /* VIEW TOGGLE SWITCH */
+        .view-toggle {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .view-toggle button {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .view-toggle button.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .view-toggle button svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+        /* --- GRID VIEW --- */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            grid-auto-rows: 400px;
+        }
+        
+        .bento-item {
+            background: var(--bg-grid);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .bento-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
+            border-color: var(--accent);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .item-title { font-size: 1.2rem; font-weight: 600; color: #fff; }
+        
+        .expand-hint {
+            opacity: 0; color: var(--accent-secondary); font-size: 0.85rem; transition: opacity 0.3s;
+            text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+        }
+        .bento-item:hover .expand-hint { opacity: 1; }
+
+        .chart-wrapper {
+            flex: 1; position: relative; width: 100%; min-height: 0;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- INLINE FOCUS VIEW --- */
+        #view-focus {
+            display: flex;
+            align-items: stretch;
+            gap: 20px;
+            height: 600px;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .nav-btn-inline {
+            background: rgba(30, 41, 59, 1);
+            border: 1px solid var(--border);
+            color: var(--accent-secondary);
+            width: 70px;
+            border-radius: 24px;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nav-btn-inline:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .focus-content-wrapper {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .focus-chart-section {
+            flex: 2; padding: 3rem; background: var(--bg-grid);
+            display: flex; flex-direction: column;
+        }
+        .focus-info-section {
+            flex: 1; padding: 3rem; border-left: 1px solid var(--border);
+            background: rgba(3, 7, 18, 0.6); display: flex; flex-direction: column;
+        }
+
+        .modal-category { color: var(--accent-secondary); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 0.5rem; }
+        .modal-title { font-size: 2.2rem; color: #fff; margin-bottom: 2rem; line-height: 1.2; }
+        .modal-desc { font-size: 1.1rem; line-height: 1.7; color: var(--text-muted); margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border); }
+        .insight-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.5rem; margin-top: auto;
+        }
+        .insight-card h4 { color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .insight-card p { color: var(--accent-secondary); font-size: 1.8rem; font-weight: 700; }
+
+        /* --- CUSTOM CSS HEATMAP (Lifestyle) --- */
+        .css-heatmap {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            grid-template-rows: 40px repeat(4, 1fr);
+            gap: 8px;
+            height: 100%;
+            width: 100%;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            padding: 10px;
+        }
+        .heatmap-cell {
+            border-radius: 6px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: crosshair;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.6);
+            z-index: 10;
+        }
+        .heatmap-col-label {
+            display: flex; align-items: flex-end; justify-content: center;
+            padding-bottom: 8px; color: #f8fafc; font-weight: 600;
+        }
+        .heatmap-row-label {
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 15px; color: #f8fafc; font-weight: 600;
+        }
+
+        /* Responsive Tweaks */
+        @media (max-width: 1100px) {
+            .dashboard-header { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .focus-content-wrapper { flex-direction: column; }
+            .focus-chart-section { height: 500px; flex: none; }
+            .focus-info-section { border-left: none; border-top: 1px solid var(--border); }
+            #view-focus { height: auto; flex-direction: column; }
+            .nav-btn-inline { width: 100%; height: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HERO SECTION -->
+    <div id="hero">
+        <canvas id="cityCanvas"></canvas>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <span class="hero-badge">Dataset Release</span>
+            <h1 class="hero-title">Nexus Smart City<br>Analysis</h1>
+            <p class="hero-subtitle">Visualizing the activity, energy footprint, and socio-digital rhythms of 1,000 citizens in a state-of-the-art smart city ecosystem.</p>
+        </div>
+        <a href="#dashboard" class="scroll-indicator">
+            <span>Scroll to Explore</span>
+            <svg viewBox="0 0 24 24"><path d="M7 13l5 5 5-5M7 6l5 5 5-5" /></svg>
+        </a>
+    </div>
+
+    <!-- DASHBOARD SECTION -->
+    <div id="dashboard">
+        
+        <div class="about-section">
+            <h2>Understanding the Citizen Dataset</h2>
+            <p>The <strong>Futuristic Smart City Citizen Activity Dataset</strong> reveals the heartbeat of urban progress. Covering critical domains such as green energy adoption (EV vs Public Transit), household kWh limits, and chronological lifestyle breakdowns—this synthesized data enables urban planners to optimize zoning and infrastructure.</p>
+            <p>Whether examining how physical health intertwines with smart infrastructure walksability, or observing the delicate balance between digital engagement and real-world public events, these insights map out the future of human-centric city design.</p>
+        </div>
+
+        <div class="dashboard-header">
+            <div class="header-title-wrapper">
+                <h2>Analytics Terminal</h2>
+                <p>Select your viewing mode or click any card directly below to seamlessly dive into detailed insights.</p>
+            </div>
+            
+            <div class="view-toggle">
+                <button id="toggle-grid" class="active" onclick="setView('grid')">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Grid View
+                </button>
+                <button id="toggle-focus" onclick="setView('focus')">
+                    <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                    Focus Mode
+                </button>
+            </div>
+        </div>
+
+        <!-- 1. GRID VIEW -->
+        <div id="view-grid" class="bento-grid">
+            <!-- Dynamically populated to keep DRY logic -->
+        </div>
+
+        <!-- 2. INLINE FOCUS VIEW -->
+        <div id="view-focus" style="display: none;">
+            <button class="nav-btn-inline" onclick="prevFocus()">&#10094;</button>
+            
+            <div class="focus-content-wrapper">
+                <div class="focus-chart-section">
+                    <div id="focus-chart-wrapper" class="chart-wrapper"></div>
+                </div>
+
+                <div class="focus-info-section">
+                    <div class="modal-category" id="f-category">Category</div>
+                    <h2 class="modal-title" id="f-title">Title</h2>
+                    <div class="modal-desc" id="f-desc">Description will appear here.</div>
+                    
+                    <div class="insight-card">
+                        <h4>Critical Finding</h4>
+                        <p id="f-insight">Insight result</p>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="nav-btn-inline" onclick="nextFocus()">&#10095;</button>
+        </div>
+
+    </div>
+
+    <script>
+        /* =======================================================
+           1. CANVAS PARALLAX CITY BACKGROUND
+           ======================================================= */
+        const canvas = document.getElementById('cityCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, stars = [], buildings = [];
+
+        function initCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            stars = [];
+            for (let i = 0; i < 150; i++) stars.push({ x: Math.random() * width, y: Math.random() * (height * 0.7), size: Math.random() * 1.5, alpha: Math.random(), speed: Math.random() * 0.05 });
+            buildings = [];
+            let currentX = 0;
+            while(currentX < width + 200) {
+                let w = Math.random() * 60 + 40;
+                let h = Math.random() * (height * 0.5) + (height * 0.1);
+                buildings.push({ x: currentX, w: w, h: h, color: `rgba(15, 23, 42, ${Math.random() * 0.4 + 0.6})`, border: 'rgba(99, 102, 241, 0.4)' });
+                currentX += w + Math.random() * 5;
+            }
+        }
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+
+        function drawCity() {
+            ctx.clearRect(0, 0, width, height);
+            stars.forEach(s => {
+                s.y -= s.speed; s.alpha += (Math.random()-0.5)*0.05;
+                if(s.y < 0) s.y = height * 0.7;
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(s.alpha)})`;
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+            });
+            buildings.forEach(b => {
+                b.x -= 0.5; 
+                if (b.x + b.w < 0) { b.x = Math.max(...buildings.map(bd => bd.x + bd.w)) + Math.random() * 5; }
+                ctx.fillStyle = b.color; ctx.strokeStyle = b.border; ctx.lineWidth = 1;
+                ctx.fillRect(b.x, height - b.h, b.w, b.h); ctx.strokeRect(b.x, height - b.h, b.w, b.h);
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.8)'; ctx.fillRect(b.x, height - b.h, b.w, 2);
+            });
+            requestAnimationFrame(drawCity);
+        }
+        drawCity();
+
+        /* =======================================================
+           2. CHART DEFINITIONS AND LOGIC
+           ======================================================= */
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Outfit', sans-serif";
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+        Chart.defaults.plugins.tooltip.titleColor = '#fff';
+
+        const chartKeys = ['transport', 'energy', 'calories', 'lifestyle', 'carbon', 'events'];
+
+        const chartDataDict = {
+            'transport': {
+                category: 'Mobility', title: 'Mode of Transport',
+                desc: 'A distribution analysis showing how the 1,000 citizens commute. 65% utilization of Eco-friendly transits (EV, pedestrian, and public networks) signals a massive shift away from deep-carbon dependencies.',
+                insight: '65% Eco-Transit',
+                type: 'doughnut',
+                data: {
+                    labels: ['Public Transit', 'Electric Vehicle', 'Walking', 'Bicycle', 'Gas Car'],
+                    datasets: [{ data: [350, 150, 200, 100, 200], backgroundColor: ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#475569'], borderWidth: 0, hoverOffset: 10 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '75%' }
+            },
+            'energy': {
+                category: 'Sustainability', title: 'Home Energy Consumption',
+                desc: 'Tracks average household energy consumption (kWh) over sectors. Deep-grid smart zoning actively distributes the load, mitigating spikes and capping excessive power draw across standard residential structures.',
+                insight: '12% Grid Efficiency Gain',
+                type: 'bar',
+                data: {
+                    labels: ['Sector A', 'Sector B', 'Sector C', 'Sector D', 'Sector E'],
+                    datasets: [{ label: 'Avg daily kWh', data: [15, 22, 18, 12, 25], backgroundColor: '#6366f1', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            },
+            'calories': {
+                category: 'Health Metrics', title: 'Steps vs Calories',
+                desc: 'Maps citizen physical activity vs metabolic burn. Positive linear correlations reinforce that infrastructural investments in walkable paths directly translate into public health milestones.',
+                insight: '+2,000 avg Daily Steps',
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Citizens', backgroundColor: '#06b6d4', pointRadius: 5, pointHoverRadius: 8,
+                        data: Array.from({length: 40}, () => ({ x: Math.floor(Math.random() * 8000 + 4000), y: Math.floor(Math.random() * 800 + 1200) }))
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { title: { display: true, text: 'Steps' } }, y: { title: { display: true, text: 'Calories' } } } }
+            },
+            'lifestyle': {
+                category: 'Daily Routine', title: 'Lifestyle Heatmap',
+                desc: 'This Heatmap visualizes how citizens allocate time across the week. High saturation indicates extended hours. Notice the dense work blocks during weekdays giving way gracefully to leisure and shopping peaks towards the weekend.',
+                insight: 'Peak Leisure: Fri - Sun',
+                type: 'html',
+                renderHtml: () => {
+                    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    const acts = ['Work', 'Sleep', 'Leisure', 'Shop'];
+                    const heatData = [
+                        [8, 8, 8, 8, 8, 2, 0], // Work
+                        [7, 7, 7, 7, 8, 9, 9], // Sleep
+                        [2, 2, 2, 3, 5, 8, 7], // Leisure
+                        [0, 1, 0, 1, 2, 4, 3]  // Shop
+                    ];
+                    let html = `<div class="css-heatmap"><div></div>`;
+                    days.forEach(d => html += `<div class="heatmap-col-label">${d}</div>`);
+                    acts.forEach((act, r) => {
+                        html += `<div class="heatmap-row-label">${act}</div>`;
+                        heatData[r].forEach((val, c) => {
+                            const intensity = val / 9;
+                            const color = val > 0 ? `rgba(6, 182, 212, ${Math.max(0.15, intensity)})` : 'transparent';
+                            const border = val > 0 ? '1px solid rgba(6, 182, 212, 0.4)' : '1px dotted rgba(255,255,255,0.05)';
+                            html += `<div class="heatmap-cell" style="background: ${color}; border: ${border}" title="${act} on ${days[c]}: ${val} hrs"></div>`;
+                        });
+                    });
+                    html += `</div>`;
+                    return html;
+                }
+            },
+            'carbon': {
+                category: 'Environmental', title: 'Carbon Footprint Trends',
+                desc: 'Chronological timeline spanning six weeks mapping the kg CO2 reduction. Recent municipal pushes for EV infrastructure have consistently driven carbon generation into the negative percentile trend.',
+                insight: 'Down 4.5% Consistently',
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+                    datasets: [{ label: 'Avg kg CO2', data: [42, 40, 39, 36, 35, 32], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 3, pointBackgroundColor: '#fff', fill: true, tension: 0.4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            },
+            'events': {
+                category: 'Social Behavior', title: 'Digital vs Public Events',
+                desc: 'Stacked bar analysis contrasting digital isolation against physical public engagement. The massive weekend spikes in orange explicitly confirm that smart cities still foster intensely close-knit physical communities despite high digital usage.',
+                insight: 'Weekend Community Surge',
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [
+                        { label: 'Social Media', data: [3.5, 3.2, 3.0, 3.5, 4.0, 4.5, 3.8], backgroundColor: '#6366f1' },
+                        { label: 'Public Events', data: [0.5, 0.5, 1.0, 1.5, 2.5, 4.0, 3.5], backgroundColor: '#f59e0b' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+            }
+        };
+
+        const gridChartInstances = {};
+        let focusChartInstance = null;
+        let currentFocusIndex = 0;
+
+        // Initialize the Grid HTML and mounting
+        window.onload = () => {
+            const gridContainer = document.getElementById('view-grid');
+            chartKeys.forEach(key => {
+                const data = chartDataDict[key];
+                const blockHTML = `
+                    <div class="bento-item" onclick="setView('focus', '${key}')">
+                        <div class="item-header">
+                            <span class="item-title">${data.title}</span>
+                            <span class="expand-hint">Click to Focus ⤢</span>
+                        </div>
+                        <div class="chart-wrapper" id="grid-wrap-${key}"></div>
+                    </div>
+                `;
+                gridContainer.insertAdjacentHTML('beforeend', blockHTML);
+                mountChartTarget(`grid-wrap-${key}`, key, false);
+            });
+        };
+
+        function mountChartTarget(containerId, key, isFocus) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            const dataDef = chartDataDict[key];
+
+            if (dataDef.type === 'html') {
+                container.innerHTML = dataDef.renderHtml();
+            } else {
+                container.innerHTML = `<canvas id="canvas-${containerId}"></canvas>`;
+                const ctx = document.getElementById(`canvas-${containerId}`).getContext('2d');
+                
+                let opt = JSON.parse(JSON.stringify(dataDef.options));
+                if (isFocus) {
+                    opt.plugins.legend = { display: true, position: 'bottom', labels: { color: '#f8fafc', padding: 15 } };
+                    if(dataDef.options.scales) opt.scales = dataDef.options.scales;
+                } else {
+                    opt.animation = false;
+                }
+
+                const chart = new Chart(ctx, { type: dataDef.type, data: JSON.parse(JSON.stringify(dataDef.data)), options: opt });
+                if (isFocus) focusChartInstance = chart;
+                else gridChartInstances[key] = chart;
+            }
+        }
+
+        /* =======================================================
+           3. VIEW TOGGLING (GRID <-> FOCUS)
+           ======================================================= */
+        function setView(mode, targetKey = null) {
+            const btnGrid = document.getElementById('toggle-grid');
+            const btnFocus = document.getElementById('toggle-focus');
+            const viewGrid = document.getElementById('view-grid');
+            const viewFocus = document.getElementById('view-focus');
+
+            if (mode === 'grid') {
+                btnGrid.classList.add('active'); btnFocus.classList.remove('active');
+                viewGrid.style.display = 'grid'; viewFocus.style.display = 'none';
+            } else {
+                btnGrid.classList.remove('active'); btnFocus.classList.add('active');
+                viewGrid.style.display = 'none'; viewFocus.style.display = 'flex';
+                
+                if (targetKey) currentFocusIndex = chartKeys.indexOf(targetKey);
+                renderFocusData();
+
+                // Smooth scroll down to view if invoked via card click
+                document.getElementById('dashboard').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function renderFocusData() {
+            const key = chartKeys[currentFocusIndex];
+            const data = chartDataDict[key];
+
+            document.getElementById('f-category').textContent = data.category;
+            document.getElementById('f-title').textContent = data.title;
+            document.getElementById('f-desc').textContent = data.desc;
+            document.getElementById('f-insight').textContent = data.insight;
+
+            if (focusChartInstance) { focusChartInstance.destroy(); focusChartInstance = null; }
+            mountChartTarget('focus-chart-wrapper', key, true);
+        }
+
+        function nextFocus() {
+            currentFocusIndex = (currentFocusIndex + 1) % chartKeys.length;
+            renderFocusData();
+        }
+
+        function prevFocus() {
+            currentFocusIndex = (currentFocusIndex - 1 + chartKeys.length) % chartKeys.length;
+            renderFocusData();
+        }
+
+    </script>
+</body>
+</html>
